@@ -8,6 +8,7 @@ import (
 
 	"github.com/aed86/word_of_wisdom_2/internal/client"
 	"github.com/aed86/word_of_wisdom_2/pkg"
+	"github.com/aed86/word_of_wisdom_2/pkg/tcpconn"
 )
 
 func main() {
@@ -22,7 +23,8 @@ func main() {
 	}
 	defer conn.Close()
 
-	if err := client.Handle(conn); err != nil {
+	c := client.NewClient(tcpconn.NewTCPConn(conn))
+	if err := c.Handle(); err != nil {
 		log.Fatal(err)
 	}
 }

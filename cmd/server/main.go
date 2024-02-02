@@ -7,6 +7,7 @@ import (
 
 	"github.com/aed86/word_of_wisdom_2/internal/server"
 	"github.com/aed86/word_of_wisdom_2/pkg"
+	"github.com/aed86/word_of_wisdom_2/pkg/tcpconn"
 )
 
 func main() {
@@ -49,9 +50,10 @@ func startServer(port string) error {
 
 func handleConnection(conn net.Conn) {
 	fmt.Println("Handling connection from:", conn.RemoteAddr())
-	err := server.Handle(conn)
-	if err != nil {
+	s := server.NewServer(tcpconn.NewTCPConn(conn))
+	if err := s.Handle(conn); err != nil {
 		fmt.Println("Error handling connection:", err)
 	}
+
 	conn.Close()
 }
