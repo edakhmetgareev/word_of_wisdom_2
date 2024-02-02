@@ -4,34 +4,59 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"time"
 
-	"github.com/aed86/proof_of_work/internal/client"
-	"github.com/joho/godotenv"
+	"github.com/aed86/word_of_wisdom_2/internal/client"
+	"github.com/aed86/word_of_wisdom_2/pkg"
 )
 
 func main() {
-	err := godotenv.Load(".env")
+	err := pkg.LoadEnv()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %s", err)
 	}
 
-	address := fmt.Sprintf("%s:%s", os.Getenv("SERVER_HOST"), os.Getenv("SERVER_PORT"))
-	fmt.Println("Connecting to server:", address)
-
-	conn, err := net.Dial("tcp", address)
+	conn, err := getConn()
 	if err != nil {
-		fmt.Println("Error connecting to server:", err)
-		return
+		log.Fatalf("Error getting connection: %s", err)
 	}
 	defer conn.Close()
-	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
-		fmt.Println("Error setting deadline:", err)
-		return
-	}
 
 	if err := client.Handle(conn); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getConn() (net.Conn, error) {
+	address, err := getServerAddr()
+	if err != nil {
+		return nil, fmt.Errorf("error getting server address: %w", err)
+	}
+
+	fmt.Println("Connecting to server:", address)
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to server: %w", err)
+	}
+
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		fmt.Println("Error setting deadline:", err)
+		return nil, fmt.Errorf("error setting deadline: %w", err)
+	}
+
+	return conn, nil
+}
+
+func getServerAddr() (string, error) {
+	serverHost, err := pkg.GetEnv("SERVER_HOST")
+	if err != nil {
+		return "", fmt.Errorf("error getting SERVER_HOST: %w", err)
+	}
+
+	serverPort, err := pkg.GetEnv("SERVER_PORT")
+	if err != nil {
+		return "", fmt.Errorf("error getting SERVER_PORT: %w", err)
+	}
+
+	return fmt.Sprintf("%s:%s", serverHost, serverPort), nil
 }

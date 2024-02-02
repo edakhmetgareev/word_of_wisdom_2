@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/aed86/proof_of_work/internal/dto"
+	"github.com/aed86/word_of_wisdom_2/internal/dto"
 )
 
 const difficulty = 4 // Number of leading zeros in the hash of the challenge

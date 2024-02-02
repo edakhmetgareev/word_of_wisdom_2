@@ -4,29 +4,36 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 
-	"github.com/aed86/proof_of_work/internal/server"
-	"github.com/joho/godotenv"
+	"github.com/aed86/word_of_wisdom_2/internal/server"
+	"github.com/aed86/word_of_wisdom_2/pkg"
 )
 
 func main() {
-	err := godotenv.Load(".env")
+	err := pkg.LoadEnv()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %s", err)
 	}
 
-	serverPort := os.Getenv("SERVER_PORT")
-	// Start the tcp server
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", serverPort))
+	serverPort, err := pkg.GetEnv("SERVER_PORT")
 	if err != nil {
-		fmt.Println("Error listening:", err)
-		log.Fatal(err)
+		log.Fatalf("Error getting SERVER_PORT: %s", err)
 	}
 
+	err = startServer(serverPort)
+	if err != nil {
+		log.Fatalf("Error starting server: %s", err)
+	}
+}
+
+func startServer(port string) error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
+	if err != nil {
+		return fmt.Errorf("error listening: %w", err)
+	}
 	defer listener.Close()
 
-	fmt.Printf("Server listening on port: %s \n", serverPort)
+	fmt.Printf("Server listening on port: %s \n", port)
 	for {
 		fmt.Println("Ready to accept connections...")
 		conn, err := listener.Accept()
@@ -36,14 +43,15 @@ func main() {
 		}
 		fmt.Println("Accepted connection from:", conn.RemoteAddr())
 
-		// Handle the connection
-		go func() {
-			fmt.Println("Handling connection from:", conn.RemoteAddr())
-			err := server.Handle(conn)
-			if err != nil {
-				fmt.Println("Error handling connection:", err)
-			}
-			conn.Close()
-		}()
+		go handleConnection(conn)
 	}
+}
+
+func handleConnection(conn net.Conn) {
+	fmt.Println("Handling connection from:", conn.RemoteAddr())
+	err := server.Handle(conn)
+	if err != nil {
+		fmt.Println("Error handling connection:", err)
+	}
+	conn.Close()
 }

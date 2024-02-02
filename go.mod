@@ -1,4 +1,4 @@
-module github.com/aed86/proof_of_work
+module github.com/aed86/word_of_wisdom_2
 
 go 1.17
 
