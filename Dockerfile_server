@@ -13,4 +13,5 @@ RUN go build -o "./bin/server" ./cmd/server
 FROM alpine:3.19
 WORKDIR /
 COPY --from=build /app/bin/server /server
+COPY --from=build /app/.env /.env
 ENTRYPOINT ["/server"]

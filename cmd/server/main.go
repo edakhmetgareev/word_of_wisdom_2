@@ -4,13 +4,21 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/aed86/proof_of_work/internal/server"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatalf("Error loading .env file: %s", err)
+	}
+
+	serverPort := os.Getenv("SERVER_PORT")
 	// Start the tcp server
-	listener, err := net.Listen("tcp", ":8080")
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", serverPort))
 	if err != nil {
 		fmt.Println("Error listening:", err)
 		log.Fatal(err)
@@ -18,7 +26,7 @@ func main() {
 
 	defer listener.Close()
 
-	fmt.Println("Server listening on :8080")
+	fmt.Printf("Server listening on port: %s \n", serverPort)
 	for {
 		fmt.Println("Ready to accept connections...")
 		conn, err := listener.Accept()
@@ -35,6 +43,7 @@ func main() {
 			if err != nil {
 				fmt.Println("Error handling connection:", err)
 			}
+			conn.Close()
 		}()
 	}
 }

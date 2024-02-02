@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/aed86/proof_of_work/internal/dto"
 )
@@ -26,12 +27,11 @@ func Handle(conn net.Conn) error {
 		return err
 	}
 
-	// Send the challenge to the client
-	_, err = fmt.Fprintf(conn, "%s\n", jsonResp)
+	jsonResp = append(jsonResp, []byte("\n")...)
+	_, err = conn.Write(jsonResp)
 	if err != nil {
 		return fmt.Errorf("error sending challenge: %w", err)
 	}
-
 	fmt.Println("Challenge sent to client")
 
 	// Read the response from the client
@@ -51,7 +51,12 @@ func Handle(conn net.Conn) error {
 	return nil
 }
 
-func prepareChallengeResp(challenge string, difficulty int) (string, error) {
+func verifyPoW(challenge, response string) bool {
+	// Сравнение ответа клиента с ожидаемым значением PoW
+	return strings.HasPrefix(response, challenge) && len(response) == len(challenge)+difficulty
+}
+
+func prepareChallengeResp(challenge string, difficulty int) ([]byte, error) {
 	resp := dto.ChallengeResp{
 		Challenge:    challenge,
 		LeadingZeros: difficulty,
@@ -59,10 +64,10 @@ func prepareChallengeResp(challenge string, difficulty int) (string, error) {
 
 	jsonResp, err := json.Marshal(resp)
 	if err != nil {
-		return "", fmt.Errorf("error marshalling challenge response: %w", err)
+		return nil, fmt.Errorf("error marshalling challenge response: %w", err)
 	}
 
-	return string(jsonResp), nil
+	return jsonResp, nil
 }
 
 func readClientResponse(conn net.Conn) (string, error) {
@@ -73,36 +78,44 @@ func readClientResponse(conn net.Conn) (string, error) {
 
 func validateProofAndWriteResponse(conn net.Conn, challenge string, response string) error {
 	if isValidProof(challenge, response) {
-		fmt.Println("Valid proof of work. Sending quote to client.")
-		quote := getRandomQuote()
-		jsonResponse, err := json.Marshal(dto.QuoteResp{
-			Quote: quote,
-		})
-		if err != nil {
-			return fmt.Errorf("error marshalling quote response: %w", err)
-		}
-
-		_, err = conn.Write(jsonResponse)
-		if err != nil {
-			return fmt.Errorf("error sending quote response: %w", err)
-		}
-
-		return nil
-	} else {
-		fmt.Println("Invalid proof of work. Sending error message to client.")
-
-		jsonResponse, err := json.Marshal(dto.QuoteResp{
-			ErrorMessage: "Invalid proof of work.",
-		})
-		if err != nil {
-			return fmt.Errorf("error marshalling quote response: %w", err)
-		}
-
-		_, err = conn.Write(jsonResponse)
-		if err != nil {
-			return fmt.Errorf("error sending quote response: %w", err)
-		}
-
-		return err
+		return sendQuote(conn)
 	}
+
+	return sendQuoteErr(conn)
+}
+
+func sendQuote(conn net.Conn) error {
+	fmt.Println("Valid proof of work. Sending quote to client.")
+	quote := getRandomQuote()
+	jsonResponse, err := json.Marshal(dto.QuoteResp{
+		Quote: quote,
+	})
+	if err != nil {
+		return fmt.Errorf("error marshalling quote response: %w", err)
+	}
+
+	_, err = conn.Write(jsonResponse)
+	if err != nil {
+		return fmt.Errorf("error sending quote response: %w", err)
+	}
+
+	return nil
+}
+
+func sendQuoteErr(conn net.Conn) error {
+	fmt.Println("Invalid proof of work. Sending error message to client.")
+
+	jsonResponse, err := json.Marshal(dto.QuoteResp{
+		ErrorMessage: "Invalid proof of work.",
+	})
+	if err != nil {
+		return fmt.Errorf("error marshalling quote response: %w", err)
+	}
+
+	_, err = conn.Write(jsonResponse)
+	if err != nil {
+		return fmt.Errorf("error sending quote response: %w", err)
+	}
+
+	return err
 }

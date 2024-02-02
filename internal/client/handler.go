@@ -26,7 +26,7 @@ func Handle(conn net.Conn) error {
 		return fmt.Errorf("error reading quote: %w", err)
 	}
 
-	fmt.Println(quote)
+	fmt.Printf("I have received a quote: \"%s\" \n", quote)
 
 	return nil
 }

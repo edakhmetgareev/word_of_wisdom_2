@@ -1,34 +1,28 @@
-build: stop build.server build.client create.network run.server create.client
+.PHONY: build start stop
+
+build: stop build-server build-client create-network run-server create-client
 
 stop:
-	docker stop server || true && docker stop client || true
+	@docker stop word_of_wisdom_server word_of_wisdom_client 2>/dev/null || true
+	@docker rm word_of_wisdom_client 2>/dev/null || true
 
-build.server:
-	docker build -t server -f Dockerfile_server .
+build-server:
+	docker build -t word_of_wisdom_server -f Dockerfile_server .
 
-build.client:
-	docker build -t client -f Dockerfile_client .
+build-client:
+	docker build -t word_of_wisdom_client -f Dockerfile_client .
 
-create.network:
-	docker network rm app_network || true && \
-	docker network create app_network --driver bridge
+create-network:
+	docker network rm word_of_wisdom_network 2>/dev/null || true
+	docker network create word_of_wisdom_network --driver bridge
 
-run.server:
-	docker stop server || true && \
-	docker run --rm --network app_network \
-		-p 8000:8000 \
-		--name server -itd \
-		-e HTTP_PORT=8000 \
-		-e CHALLENGE_TTL=1m \
-	server
+run-server:
+	docker run --rm --network word_of_wisdom_network -p 8080:8080 --name word_of_wisdom_server -itd -e SERVER_PORT=8080 word_of_wisdom_server
 
-create.client:
-	docker rm client || true && \
-	docker create --network app_network \
-		--name client -i \
-		-e SERVER_HOST=server \
-		-e HTTP_PORT=8000 \
-	client
+create-client:
+	docker rm word_of_wisdom_client 2>/dev/null || true
+	docker create --network word_of_wisdom_network --name word_of_wisdom_client -i -e SERVER_HOST=word_of_wisdom_server -e SERVER_PORT=8080 word_of_wisdom_client
 
 start:
-	docker start -i client
+	@sleep 1
+	docker start -i word_of_wisdom_client

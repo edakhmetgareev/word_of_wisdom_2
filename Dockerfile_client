@@ -13,4 +13,5 @@ RUN go build -o "./bin/client" ./cmd/client
 FROM alpine:3.19
 WORKDIR /
 COPY --from=build /app/bin/client /client
+COPY --from=build /app/.env /.env
 ENTRYPOINT ["/client"]
