@@ -9,8 +9,11 @@ import (
 var leadingZeros = strings.Repeat("0", difficulty)
 
 func isValidProof(challenge string, response string) bool {
-	data := challenge + response
-	hash := sha256.Sum256([]byte(data))
+	if !strings.HasPrefix(response, challenge) {
+		return false
+	}
+
+	hash := sha256.Sum256([]byte(response))
 	hashString := hex.EncodeToString(hash[:])
 
 	// Check if the hash has the required number of leading zeros

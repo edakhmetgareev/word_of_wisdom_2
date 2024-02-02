@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/aed86/proof_of_work/internal/dto"
 )
@@ -40,6 +39,10 @@ func Handle(conn net.Conn) error {
 		return fmt.Errorf("error reading client response: %w", err)
 	}
 
+	if response == "" {
+		return fmt.Errorf("empty response from client")
+	}
+
 	fmt.Println("Response received from client:", response)
 
 	// Check if the proof of work is valid and write the response
@@ -49,11 +52,6 @@ func Handle(conn net.Conn) error {
 	}
 
 	return nil
-}
-
-func verifyPoW(challenge, response string) bool {
-	// Сравнение ответа клиента с ожидаемым значением PoW
-	return strings.HasPrefix(response, challenge) && len(response) == len(challenge)+difficulty
 }
 
 func prepareChallengeResp(challenge string, difficulty int) ([]byte, error) {
