@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/aed86/word_of_wisdom_2/internal/client"
 	"github.com/aed86/word_of_wisdom_2/pkg"
@@ -16,6 +17,8 @@ import (
 type ClientConfig struct {
 	Address string
 }
+
+var clientTimeout = 5 * time.Second
 
 func main() {
 	err := pkg.LoadEnv()
@@ -58,7 +61,7 @@ func main() {
 func run(c *client.Client, config *ClientConfig, wg *sync.WaitGroup, successCount *atomic.Int32, i int) {
 	defer wg.Done()
 
-	conn, err := net.Dial("tcp", config.Address)
+	conn, err := net.DialTimeout("tcp", config.Address, clientTimeout)
 	if err != nil {
 		log.Printf("error connecting to server: %s, i: %d \n", err, i)
 		return
