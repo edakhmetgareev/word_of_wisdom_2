@@ -2,10 +2,12 @@ package client
 
 import (
 	"fmt"
+
+	"github.com/aed86/word_of_wisdom_2/internal/dto"
 )
 
-func (c *Client) Handle() error {
-	data, err := c.readChallenge()
+func (c *Client) Handle(conn Conn, i int) error {
+	data, err := c.readChallenge(conn)
 	if err != nil {
 		return fmt.Errorf("error reading challenge: %w", err)
 	}
@@ -15,13 +17,17 @@ func (c *Client) Handle() error {
 		return fmt.Errorf("error finding proof: %w", err)
 	}
 
-	if err := c.sendProof(proof); err != nil {
-		return fmt.Errorf("error sending proof: %w", err)
+	if err := conn.Send(dto.ProofResp{Proof: proof}); err != nil {
+		return fmt.Errorf("error writing proof response: %w", err)
 	}
 
-	quote, err := c.readQuote()
-	if err != nil {
-		return fmt.Errorf("error reading quote: %w", err)
+	var quote dto.QuoteResp
+	if err := conn.Read(&quote); err != nil {
+		return fmt.Errorf("error reading quote response: %w", err)
+	}
+
+	if quote.ErrorMessage != "" {
+		return fmt.Errorf("error reading quote response: %s", quote.ErrorMessage)
 	}
 
 	fmt.Printf("I have received a quote: \"%s\" \n", quote.Quote)

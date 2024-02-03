@@ -1,11 +1,14 @@
 package tcpconn
 
 import (
-	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 )
+
+var ErrTooManyOpenFiles = errors.New("too many open files")
+var ErrConnectionReset = errors.New("connection reset by peer")
 
 type Validatable interface {
 	IsValid() bool
@@ -61,9 +64,25 @@ func (t *TCPConn) writeConn(conn net.Conn, message []byte) error {
 }
 
 func (t *TCPConn) scanConnection(conn net.Conn) ([]byte, error) {
-	scanner := bufio.NewScanner(conn)
-	if !scanner.Scan() {
-		return nil, scanner.Err()
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return nil, handleTCPConnErr(err)
 	}
-	return scanner.Bytes(), nil
+
+	return buffer[:n], nil
+}
+
+func handleTCPConnErr(err error) error {
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if opErr.Err.Error() == "too many open files" {
+			return ErrTooManyOpenFiles
+		}
+
+		if opErr.Err.Error() == "read: connection reset by peer" {
+			return ErrConnectionReset
+		}
+	}
+	return err
 }

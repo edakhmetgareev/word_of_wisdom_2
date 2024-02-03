@@ -2,17 +2,16 @@ package server
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/aed86/word_of_wisdom_2/internal/dto"
 )
 
 const difficulty = 5 // Number of leading zeros in the hash of the challenge
 
-func (s *Server) Handle(conn net.Conn) error {
+func (s *Server) Handle(conn Conn) error {
 	challenge, err := generateChallenge()
 	if err != nil {
-		return fmt.Errorf("error generating challenge: %w", err)
+		return err
 	}
 
 	r := dto.ChallengeResp{
@@ -20,23 +19,24 @@ func (s *Server) Handle(conn net.Conn) error {
 		LeadingZeros: difficulty,
 	}
 
-	if err := s.sendChallenge(r); err != nil {
-		return fmt.Errorf("error sending challenge: %w", err)
+	err = s.sendChallenge(conn, r)
+	if err != nil {
+		return err
 	}
 
 	// Receive proof from client
-	proof, err := s.readClientProof()
+	proof, err := s.readClientProof(conn)
 	if err != nil {
-		return fmt.Errorf("error getting client proof: %w", err)
+		return err
 	}
 
 	// Check if the proof of work is valid
 	if !isValidProof(challenge, proof.Proof) {
-		return s.sendQuoteErr()
+		return s.sendQuoteErr(conn)
 	}
 
 	// Send random quote to client
-	if err := s.sendRandQuote(); err != nil {
+	if err := s.sendRandQuote(conn); err != nil {
 		return fmt.Errorf("error sending quote: %w", err)
 	}
 

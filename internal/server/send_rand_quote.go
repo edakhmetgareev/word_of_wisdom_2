@@ -6,10 +6,10 @@ import (
 	"github.com/aed86/word_of_wisdom_2/internal/dto"
 )
 
-func (s *Server) sendRandQuote() error {
+func (s *Server) sendRandQuote(tcpConn Conn) error {
 	quote := getRandomQuote()
 
-	if err := s.tcpConn.Send(dto.QuoteResp{Quote: quote}); err != nil {
+	if err := tcpConn.Send(dto.QuoteResp{Quote: quote}); err != nil {
 		return fmt.Errorf("error writing quote response: %w", err)
 	}
 
@@ -18,10 +18,10 @@ func (s *Server) sendRandQuote() error {
 	return nil
 }
 
-func (s *Server) sendQuoteErr() error {
+func (s *Server) sendQuoteErr(tcpConn Conn) error {
 	fmt.Println("Invalid proof of work. Sending error message to client.")
 
-	if err := s.tcpConn.Send(dto.QuoteResp{ErrorMessage: "Invalid proof of work."}); err != nil {
+	if err := tcpConn.Send(dto.QuoteResp{ErrorMessage: "Invalid proof of work."}); err != nil {
 		return fmt.Errorf("error sending quote response: %w", err)
 	}
 

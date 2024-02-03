@@ -7,18 +7,12 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const maxAttempts = 1000000
 
 func findProof(challenge string, difficulty int) (string, error) {
 	leadingZeros := strings.Repeat("0", difficulty)
-	startedAt := time.Now()
-
-	defer func() {
-		fmt.Println("Total time elapsed to find proof:", time.Since(startedAt))
-	}()
 
 	// easiest way to solve the problem
 	for nonce := 0; nonce < math.MaxInt64; nonce++ {

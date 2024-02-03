@@ -6,14 +6,16 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"time"
+	"syscall"
 
 	"github.com/aed86/word_of_wisdom_2/internal/client"
 	"github.com/aed86/word_of_wisdom_2/pkg"
 	"github.com/aed86/word_of_wisdom_2/pkg/tcpconn"
 )
 
-const clientsCount = 500
+type ClientConfig struct {
+	Address string
+}
 
 func main() {
 	err := pkg.LoadEnv()
@@ -25,50 +27,55 @@ func main() {
 		wg           sync.WaitGroup
 		successCount atomic.Int32
 	)
-	wg.Add(clientsCount)
-	for i := 0; i < clientsCount; i++ {
-		go run(&wg, &successCount)
+
+	address, err := getServerAddr()
+	if err != nil {
+		log.Fatalf("Error getting server address: %s", err)
+	}
+
+	c := client.NewClient()
+	maxClientsCount := getMaxFileDescriptorsLimit() / 100 // keep some space for other processes
+	log.Printf("Max clients count: %d\n", maxClientsCount)
+
+	sem := make(chan struct{}, 130)
+
+	config := &ClientConfig{Address: address}
+	for i := 0; i < maxClientsCount; i++ {
+		sem <- struct{}{} // acquire the semaphore
+
+		wg.Add(1)
+		go func(i int) {
+			run(c, config, &wg, &successCount, i)
+			<-sem // release the semaphore
+		}(i)
 	}
 
 	wg.Wait()
 
-	fmt.Printf("Success count: %d\n", successCount.Load())
+	log.Printf("Success count: %d\n", successCount.Load())
 }
 
-func run(wg *sync.WaitGroup, successCount *atomic.Int32) {
+func run(c *client.Client, config *ClientConfig, wg *sync.WaitGroup, successCount *atomic.Int32, i int) {
 	defer wg.Done()
-	conn, err := getConn()
-	if err != nil {
-		log.Fatalf("Error getting connection: %s", err)
-	}
-	defer conn.Close()
 
-	c := client.NewClient(tcpconn.NewTCPConn(conn))
-	if err := c.Handle(); err != nil {
-		fmt.Println("Error handling client:", err)
+	conn, err := net.Dial("tcp", config.Address)
+	if err != nil {
+		log.Printf("error connecting to server: %s, i: %d \n", err, i)
 		return
 	}
+
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("Error closing connection: %v", err)
+		}
+	}()
+
+	if err := c.Handle(tcpconn.NewTCPConn(conn), i); err != nil {
+		log.Printf("Error handling client: err: %s, i: %d \n", err, i)
+		return
+	}
+
 	successCount.Add(1)
-}
-
-func getConn() (net.Conn, error) {
-	address, err := getServerAddr()
-	if err != nil {
-		return nil, fmt.Errorf("error getting server address: %w", err)
-	}
-
-	fmt.Println("Connecting to server:", address)
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to server: %w", err)
-	}
-
-	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
-		fmt.Println("Error setting deadline:", err)
-		return nil, fmt.Errorf("error setting deadline: %w", err)
-	}
-
-	return conn, nil
 }
 
 func getServerAddr() (string, error) {
@@ -83,4 +90,12 @@ func getServerAddr() (string, error) {
 	}
 
 	return fmt.Sprintf("%s:%s", serverHost, serverPort), nil
+}
+
+func getMaxFileDescriptorsLimit() int {
+	var rLimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		panic(err)
+	}
+	return int(rLimit.Cur) // soft limit
 }
