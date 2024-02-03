@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aed86/word_of_wisdom_2/internal/client"
@@ -11,12 +13,30 @@ import (
 	"github.com/aed86/word_of_wisdom_2/pkg/tcpconn"
 )
 
+const clientsCount = 500
+
 func main() {
 	err := pkg.LoadEnv()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %s", err)
 	}
 
+	var (
+		wg           sync.WaitGroup
+		successCount atomic.Int32
+	)
+	wg.Add(clientsCount)
+	for i := 0; i < clientsCount; i++ {
+		go run(&wg, &successCount)
+	}
+
+	wg.Wait()
+
+	fmt.Printf("Success count: %d\n", successCount.Load())
+}
+
+func run(wg *sync.WaitGroup, successCount *atomic.Int32) {
+	defer wg.Done()
 	conn, err := getConn()
 	if err != nil {
 		log.Fatalf("Error getting connection: %s", err)
@@ -25,8 +45,10 @@ func main() {
 
 	c := client.NewClient(tcpconn.NewTCPConn(conn))
 	if err := c.Handle(); err != nil {
-		log.Fatal(err)
+		fmt.Println("Error handling client:", err)
+		return
 	}
+	successCount.Add(1)
 }
 
 func getConn() (net.Conn, error) {

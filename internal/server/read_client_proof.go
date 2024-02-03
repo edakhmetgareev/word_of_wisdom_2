@@ -12,7 +12,7 @@ func (s *Server) readClientProof() (*dto.ProofResp, error) {
 		return nil, fmt.Errorf("error reading challenge response: %w", err)
 	}
 
-	fmt.Println("Response received from client:", data)
+	fmt.Printf("Response received from client: %+v\n", data)
 
 	return &data, nil
 }
